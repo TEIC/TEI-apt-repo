@@ -1,0 +1,208 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project basedir="." name="debian" default="all">
+    
+    <property name="build.server" value="http://jenkins.tei-c.org"/>
+	<property name="deb.dir" value="binary"/>
+	
+	<target name="all" depends="clean, release, sign, index.html">
+		<description>
+			This is the main target which will download the Debian packages from the Jenkins 
+			build server, add some repository infrastructure around and create an HTML index file.
+		</description>
+	</target>
+	
+	<target name="init">
+		<description>
+			We need some basic directory structure.
+			Creating subfolder ${deb.dir} if it doesn't already exist.
+		</description>
+		<mkdir dir="${deb.dir}"/>
+	</target>
+	
+	<target name="clean">
+		<description>
+			Remove everything and prepare for a new release
+		</description>
+		<delete dir="${deb.dir}"/>
+		<delete file="index.html"/>	
+	</target>
+    
+	<target name="Stylesheets.version" unless="Stylesheets.version">
+		<description>
+			Stylesheets version will be grabbed from the current master branch 
+			*unless* you supply on the commandline via -DStylesheets.version=x.x.x
+		</description>
+		<tempfile property="Stylesheets.version.tempfile" deleteonexit="yes"/>
+		<get dest="${Stylesheets.version.tempfile}" src="${build.server}/job/Stylesheets/ws/VERSION"/>
+		<loadfile property="Stylesheets.version" srcfile="${Stylesheets.version.tempfile}">
+			<filterchain>
+				<striplinebreaks/>
+			</filterchain>
+		</loadfile>
+		<echo>Current version of the Stylesheets in ${build.server}/job/Stylesheets/ws/VERSION: ${Stylesheets.version}</echo>
+	</target>
+	
+	<target name="P5.version" unless="P5.version">
+		<description>
+			TEI version will be grabbed from the current master branch 
+			*unless* you supply on the commandline via -DP5.version=x.x.x
+		</description>
+		<tempfile property="P5.version.tempfile" deleteonexit="yes"/>
+		<get dest="${P5.version.tempfile}" src="${build.server}/job/TEIP5/ws/P5/VERSION"/>
+		<loadfile property="P5.version" srcfile="${P5.version.tempfile}">
+			<filterchain>
+				<striplinebreaks/>
+			</filterchain>
+		</loadfile>
+		<echo>Current version of TEI P5 in ${build.server}/job/TEIP5/ws/P5/VERSION: ${P5.version}</echo>
+	</target>
+	
+	<target name="download.debs" depends="init, Stylesheets.version, P5.version">
+		<description>
+			Getting the Debian packages from the Debian build server, relying on the version number as 
+			grabbed by the targets "Stylesheets.version" and "P5.version".
+			The debs will be stored in the directory pointed to by the param "deb.dir".
+		</description>
+		<echo>Downloading deb files from Jenkins build server …</echo>
+		<get dest="${deb.dir}" verbose="on" skipexisting="yes">
+			<url url="${build.server}/job/TEIP5/lastSuccessfulBuild/artifact/P5/tei-p5-source_${P5.version}_all.deb"/>
+<!--			<url url="${build.server}/job/TEIP5/lastSuccessfulBuild/artifact/P5/tei-p5-source_${P5.version}_amd64.build"/>-->
+<!--			<url url="${build.server}/job/TEIP5/lastSuccessfulBuild/artifact/P5/tei-p5-source_${P5.version}_amd64.changes"/>-->
+			
+			<url url="${build.server}/job/TEIP5/lastSuccessfulBuild/artifact/P5/tei-p5-schema_${P5.version}_all.deb"/>
+<!--			<url url="${build.server}/job/TEIP5/lastSuccessfulBuild/artifact/P5/tei-p5-schema_${P5.version}_amd64.build"/>-->
+<!--			<url url="${build.server}/job/TEIP5/lastSuccessfulBuild/artifact/P5/tei-p5-schema_${P5.version}_amd64.changes"/>-->
+			
+			<url url="${build.server}/job/TEIP5/lastSuccessfulBuild/artifact/P5/tei-p5-doc_${P5.version}_all.deb"/>
+<!--			<url url="${build.server}/job/TEIP5/lastSuccessfulBuild/artifact/P5/tei-p5-doc_${P5.version}_amd64.build"/>-->
+<!--			<url url="${build.server}/job/TEIP5/lastSuccessfulBuild/artifact/P5/tei-p5-doc_${P5.version}_amd64.changes"/>-->
+			
+			<url url="${build.server}/job/Stylesheets/lastSuccessfulBuild/artifact/tei-xsl_${Stylesheets.version}_all.deb"/>
+<!--			<url url="${build.server}/job/Stylesheets/lastSuccessfulBuild/artifact/tei-xsl_${Stylesheets.version}_amd64.build"/>-->
+<!--			<url url="${build.server}/job/Stylesheets/lastSuccessfulBuild/artifact/tei-xsl_${Stylesheets.version}_amd64.changes"/>-->
+		</get>
+	</target>
+	
+	<target name="package-index" depends="download.debs">
+		<description>
+			Create the Packages file needed for the APT repository
+		</description>
+		<delete>
+			<fileset dir="${deb.dir}">
+				<include name="Packages*"/>
+			</fileset>
+		</delete>
+		<exec executable="/bin/sh" dir="${deb.dir}" failonerror="yes">
+			<arg value="-c"/>
+			<arg value="dpkg-scanpackages -m . > Packages"/>
+		</exec>
+		<gzip src="${deb.dir}/Packages" destfile="${deb.dir}/Packages.gz"/>
+		<bzip2 src="${deb.dir}/Packages" destfile="${deb.dir}/Packages.bz2"/>
+	</target>
+	
+	<target name="release" depends="package-index">
+		<description>
+			Create the apt Release file in the directory indicated by "deb.dir".
+			To avoid dependency on apt-ftparchive and to be able to run on e.g. CentOS we're writing this file by hand.
+		</description>
+		<tstamp>
+			<!-- Timestamp in RFC 822 format, e.g. "Fri, 24 Feb 2017 20:08:37 +0100" -->
+			<format property="TODAY_rfc" pattern="EEE, d MMM yyyy HH:mm:ss Z" locale="rfc"/>
+		</tstamp>
+		<!-- Get the sizes (in bytes) of the Packages files -->
+		<length file="${deb.dir}/Packages" property="Packages.size"/>
+		<length file="${deb.dir}/Packages.gz" property="Packages.gz.size"/>
+		<length file="${deb.dir}/Packages.bz2" property="Packages.bz2.size"/>
+		<!-- Compute checksums -->
+		<checksum file="${deb.dir}/Packages" algorithm="MD5" property="Packages.MD5"/>
+		<checksum file="${deb.dir}/Packages.gz" algorithm="MD5" property="Packages.gz.MD5"/>
+		<checksum file="${deb.dir}/Packages.bz2" algorithm="MD5" property="Packages.bz2.MD5"/>
+		<checksum file="${deb.dir}/Packages" algorithm="SHA" property="Packages.SHA1"/>
+		<checksum file="${deb.dir}/Packages.gz" algorithm="SHA" property="Packages.gz.SHA1"/>
+		<checksum file="${deb.dir}/Packages.bz2" algorithm="SHA" property="Packages.bz2.SHA1"/>
+		<checksum file="${deb.dir}/Packages" algorithm="SHA-256" property="Packages.SHA256"/>
+		<checksum file="${deb.dir}/Packages.gz" algorithm="SHA-256" property="Packages.gz.SHA256"/>
+		<checksum file="${deb.dir}/Packages.bz2" algorithm="SHA-256" property="Packages.bz2.SHA256"/>
+		<checksum file="${deb.dir}/Packages" algorithm="SHA-512" property="Packages.SHA512"/>
+		<checksum file="${deb.dir}/Packages.gz" algorithm="SHA-512" property="Packages.gz.SHA512"/>
+		<checksum file="${deb.dir}/Packages.bz2" algorithm="SHA-512" property="Packages.bz2.SHA512"/>
+		<!-- Write the release file  -->
+		<echo file="${deb.dir}/Release">Architectures: all ${line.separator}</echo>
+		<echo file="${deb.dir}/Release" append="yes">Date: ${TODAY_rfc} ${line.separator}</echo>
+		<echo file="${deb.dir}/Release" append="yes">MD5Sum: ${line.separator}</echo>
+		<echo file="${deb.dir}/Release" append="yes"> ${Packages.MD5} ${Packages.size} Packages ${line.separator}</echo>
+		<echo file="${deb.dir}/Release" append="yes"> ${Packages.gz.MD5} ${Packages.gz.size} Packages.gz ${line.separator}</echo>
+		<echo file="${deb.dir}/Release" append="yes"> ${Packages.bz2.MD5} ${Packages.bz2.size} Packages.bz2 ${line.separator}</echo>
+		<echo file="${deb.dir}/Release" append="yes">SHA1: ${line.separator}</echo>
+		<echo file="${deb.dir}/Release" append="yes"> ${Packages.SHA1} ${Packages.size} Packages ${line.separator}</echo>
+		<echo file="${deb.dir}/Release" append="yes"> ${Packages.gz.SHA1} ${Packages.gz.size} Packages.gz ${line.separator}</echo>
+		<echo file="${deb.dir}/Release" append="yes"> ${Packages.bz2.SHA1} ${Packages.bz2.size} Packages.bz2 ${line.separator}</echo>
+		<echo file="${deb.dir}/Release" append="yes">SHA256: ${line.separator}</echo>
+		<echo file="${deb.dir}/Release" append="yes"> ${Packages.SHA256} ${Packages.size} Packages ${line.separator}</echo>
+		<echo file="${deb.dir}/Release" append="yes"> ${Packages.gz.SHA256} ${Packages.gz.size} Packages.gz ${line.separator}</echo>
+		<echo file="${deb.dir}/Release" append="yes"> ${Packages.bz2.SHA256} ${Packages.bz2.size} Packages.bz2 ${line.separator}</echo>
+		<echo file="${deb.dir}/Release" append="yes">SHA512: ${line.separator}</echo>
+		<echo file="${deb.dir}/Release" append="yes"> ${Packages.SHA512} ${Packages.size} Packages ${line.separator}</echo>
+		<echo file="${deb.dir}/Release" append="yes"> ${Packages.gz.SHA512} ${Packages.gz.size} Packages.gz ${line.separator}</echo>
+		<echo file="${deb.dir}/Release" append="yes"> ${Packages.bz2.SHA512} ${Packages.bz2.size} Packages.bz2 ${line.separator}</echo>
+	</target>
+	
+	<!--<target name="apt-ftparchive" depends="download.debs">
+		<description>
+			Create the apt repository files (Packages and Sources) in the directory indicated by "deb.dir".
+			This target is a more or less direct translation of Sebastian's original Makefile and depends on the apt-ftparchive util. 
+		</description>
+		<delete>
+			<fileset dir="${deb.dir}">
+				<include name="Packages*"/>
+				<include name="Sources*"/>
+				<include name="Release*"/>
+			</fileset>
+		</delete>
+		<exec executable="/bin/sh" dir="${deb.dir}" failonerror="yes">
+			<arg value="-c"/>
+			<arg value="apt-ftparchive sources  . > Sources"/>
+		</exec>
+		<exec executable="/bin/sh" dir="${deb.dir}" failonerror="yes">
+			<arg value="-c"/>
+			<arg value="apt-ftparchive packages . > Packages"/>
+		</exec>
+		<!-\- zipping the resulting Packages and Sources file -\->
+		<gzip src="${deb.dir}/Sources" destfile="${deb.dir}/Sources.gz"/>
+		<gzip src="${deb.dir}/Packages" destfile="${deb.dir}/Packages.gz"/>
+		<bzip2 src="${deb.dir}/Sources" destfile="${deb.dir}/Sources.bz2"/>
+		<bzip2 src="${deb.dir}/Packages" destfile="${deb.dir}/Packages.bz2"/>
+		
+		<exec executable="/bin/sh" failonerror="yes">
+			<arg value="-c"/>
+			<arg value="apt-ftparchive release ${deb.dir} > ${deb.dir}/Release"/>
+		</exec>
+	</target>-->
+	
+	<target name="sign">
+		<description>
+			Sign the apt repository Release file.
+		</description>
+		<input message="Please enter the gpg passphrase: " addproperty="gpg.pass">
+			<handler type="secure"/>
+		</input>
+		<!-- We assume the keyring to be in the standard location under ~/.gnupg/ and that there's only one private key -->
+		<exec executable="/bin/sh" dir="${deb.dir}">
+			<arg value="-c"/>
+			<arg value="echo '${gpg.pass}' | gpg --passphrase-fd 0 --batch --yes --sign -ba -o Release.gpg Release"/>
+		</exec>
+	</target>
+	
+	<target name="index.html">
+		<description>
+			Create the index.html file from the template by 
+			adding the deb files from the current release.
+		</description>
+		<local name="packages"/>
+		<loadfile property="packages" srcfile="${deb.dir}/Packages"/>
+		<xslt processor="trax" style="index.xsl" in="index.tmpl" out="index.html">
+			<param name="packages" expression="${packages}"/>
+		</xslt>
+	</target>
+  
+</project>

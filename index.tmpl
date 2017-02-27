@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+	<head>
+		<title>TEI Debian packages</title>
+	</head>
+
+	<body>
+		<h1>TEI Debian packages</h1>
+		<p>This is a set of <em>unofficial</em>, <em>unguaranteed,</em> Debian packages with <a
+				href="http://www.tei-c.org">TEI</a>-useful software and resources packaged by the <a
+					href="http://www.tei-c.org/Activities/Council/">TEI Technical Council</a>. </p>
+		<p><b>If you are a Debian Linux user with a bent for experimentation, you may find some of
+				these useful. If you don't know what they are for, don't touch them.</b></p>
+		<p>To pick these packages up using <code>apt-get</code>, add this to your
+				<code>/etc/apt/sources.list</code> file:</p>
+		<pre>
+		<code>deb https://packages.tei-c.org/deb/binary ./ </code> (with apt-transport-https installed)</pre>
+		<p>If you see errors like <code>W: GPG error: [WWW] https://packages.tei-c.org binary/
+				Release: The following signatures couldn't be verified because the public key is not
+				available: NO_PUBKEY 19CF3E497B9824DC</code>, you'll need to first download our 
+			<a href="tei-c.pub.key.asc">public PGP key</a> and then do </p>
+		<pre>
+		<code>sudo apt-key add tei-c.pub.key.asc</code></pre>
+		<!--<p>If wwwkeys.uk.pgp.net fails, there are alternatives you can try, explained at <a
+				href="http://www.pgp.net/pgpnet/wwwkeys.html"
+				>http://www.pgp.net/pgpnet/wwwkeys.html</a></p>-->
+		<table>
+			<thead>
+				<tr>
+					<th>Name</th>
+					<th>File</th>
+					<th>MD5 checksum</th>
+				</tr>
+			</thead>
+			<!--<tr>
+				<td>rnv</td>
+				<td><a href="binary/rnv_1.7.8_i386.deb">rnv_1.7.8_i386.deb</a></td>
+				<td>833d2091abb39dce2f21499e438005a7</td>
+			</tr>-->
+		</table>
+		<hr />
+		<address>
+			<a href="mailto:pstadler@mai.upb.de">Peter Stadler</a> for the TEI Council
+		</address>
+	</body>
+</html>
