@@ -107,7 +107,7 @@
 		</description>
 		<tstamp>
 			<!-- Timestamp in RFC 822 format, e.g. "Fri, 24 Feb 2017 20:08:37 +0100" -->
-			<format property="TODAY_rfc" pattern="EEE, d MMM yyyy HH:mm:ss Z" locale="rfc"/>
+			<format property="TODAY_rfc" pattern="EEE, d MMM yyyy HH:mm:ss Z" locale="en" timezone="UTC"/>
 		</tstamp>
 		<!-- Get the sizes (in bytes) of the Packages files -->
 		<length file="${deb.dir}/Packages" property="Packages.size"/>
