@@ -15,7 +15,7 @@ Dependencies
 * `dpkg-scanpackages` for inspecting the deb packages
 
 
-How to run
+How it works
 -------
 
 Simply clone this repository to the server directory where you want the APT repository to be created an run `ant`.
