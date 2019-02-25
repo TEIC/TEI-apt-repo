@@ -32,6 +32,6 @@ RUN ant -lib /usr/share/java \
 # run webserver
 FROM nginx:alpine
 
-WORKDIR /usr/share/nginx/html
+WORKDIR /usr/share/nginx/html/deb
 
 COPY --from=builder /TEI-apt-repo/ .
