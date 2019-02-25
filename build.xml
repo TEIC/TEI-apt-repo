@@ -3,6 +3,7 @@
     
     <property name="build.server" value="http://jenkins.tei-c.org"/>
 	<property name="deb.dir" value="binary"/>
+	<property name="gpg.pass.file" value="/gpg/secret"/>
 	
 	<target name="all" depends="clean, release, sign, index.html">
 		<description>
@@ -179,17 +180,43 @@
 		</exec>
 	</target>-->
 	
-	<target name="sign">
+	<target name="_check.gpg.pass.file">
 		<description>
-			Sign the apt repository Release file.
+			Check whether the gpg passphrase is provided as file.
+		</description>
+		<condition property="gpg.pass.file.available" value="true">
+			<resourceexists>
+				<file file="${gpg.pass.file}"/>
+			</resourceexists>
+		</condition>
+	</target>
+	
+	<target name="gpg.pass.input" unless="${gpg.pass.file.available}">
+		<description>
+			If the gpg passphrase is not provided as file, ask the user.
+			NB: this will fail for batch processes, e.g. when running as a docker build.
 		</description>
 		<input message="Please enter the gpg passphrase: " addproperty="gpg.pass">
 			<handler type="secure"/>
 		</input>
+	</target>
+	
+	<target name="gpg.pass.file" if="${gpg.pass.file.available}">
+		<description>
+			Load the gpg passphrase from file.
+		</description>
+		<loadfile property="gpg.pass" srcFile="${gpg.pass.file}"/>
+	</target>
+	
+	
+	<target name="sign" depends="_check.gpg.pass.file,gpg.pass.file,gpg.pass.input">
+		<description>
+			Sign the apt repository Release file.
+		</description>
 		<!-- We assume the keyring to be in the standard location under ~/.gnupg/ and that there's only one private key -->
-		<exec executable="/bin/sh" dir="${deb.dir}">
+		<exec executable="/bin/sh" dir="${deb.dir}" failonerror="true">
 			<arg value="-c"/>
-			<arg value="echo '${gpg.pass}' | gpg --passphrase-fd 0 --batch --yes --sign -ba -o Release.gpg Release"/>
+			<arg value="echo '${gpg.pass}' | gpg --passphrase-fd 0 --batch --pinentry-mode loopback --yes --sign -ba -o Release.gpg Release"/>
 		</exec>
 	</target>
 	
