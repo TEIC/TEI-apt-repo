@@ -30,7 +30,21 @@ The script will
 Docker
 -------
 
-A multi stage Dockerfile is provided that will 
+### Running
+
+A ready-made Docker image based on [nginx:alpine](https://hub.docker.com/_/nginx) with the current TEI release is available from 
+[DockerHub](https://cloud.docker.com/u/teic/repository/docker/teic/tei-apt-repo).
+
+```
+docker run --rm -p 9090:80 --name tei-apt-repo teic/tei-apt-repo
+```
+
+NB: the Debian repo is provided in a subfolder `deb` so you'll need to point your browser at `http://localhost:9090/deb/`.
+
+
+### Building
+
+A multi stage Dockerfile is provided for creating the above image that will 
 a) build the artifacts and create the apt repository, and
 b) run a nginx webserver for publishing the apt repo.
 
